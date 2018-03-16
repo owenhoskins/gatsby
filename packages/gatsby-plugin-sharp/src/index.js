@@ -94,27 +94,38 @@ const processFile = (file, jobs, cb, reporter) => {
       roundedHeight = Math.round(roundedHeight)
     }
     const roundedWidth = Math.round(args.width)
-    clonedPipeline
-      .resize(roundedWidth, roundedHeight)
-      .crop(args.cropFocus)
-      .png({
-        compressionLevel: args.pngCompressionLevel,
-        adaptiveFiltering: false,
-        force: args.toFormat === `png`,
-      })
-      .jpeg({
-        quality: args.quality,
-        progressive: args.jpegProgressive,
-        force: args.toFormat === `jpg`,
-      })
-      .webp({
-        quality: args.quality,
-        force: args.toFormat === `webp`,
-      })
-      .tiff({
-        quality: args.quality,
-        force: args.toFormat === `tiff`,
-      })
+
+
+    // if do not resize
+    if (args.passThrough) {
+      // console.log('Do not resize, ', clonedPipeline)
+    } else {
+
+      clonedPipeline.resize(roundedWidth, roundedHeight)
+        /*
+        .crop(args.cropFocus)
+        .png({
+          compressionLevel: args.pngCompressionLevel,
+          adaptiveFiltering: false,
+          force: args.toFormat === `png`,
+        })
+        .jpeg({
+          quality: args.quality,
+          progressive: args.jpegProgressive,
+          force: args.toFormat === `jpg`,
+        })
+        .webp({
+          quality: args.quality,
+          force: args.toFormat === `webp`,
+        })
+        .tiff({
+          quality: args.quality,
+          force: args.toFormat === `tiff`,
+        })
+        */
+
+    }
+
 
     // grayscale
     if (args.grayscale) {
@@ -480,12 +491,45 @@ async function responsiveSizes({ file, args = {}, reporter }) {
   // image processing time (Sharp has optimizations thankfully for creating
   // multiple sizes of the same input file)
   const sizes = []
-  sizes.push(options.maxWidth / 4)
-  sizes.push(options.maxWidth / 2)
-  sizes.push(options.maxWidth)
-  sizes.push(options.maxWidth * 1.5)
-  sizes.push(options.maxWidth * 2)
-  sizes.push(options.maxWidth * 3)
+
+  // if (options.sizes)
+  //if (options.srcSet) {
+
+    // an array
+    // pass in the sizes you want below and above the maxWidth
+    // default is [4, 2, 1.5, 2, 3]
+    // [4, 2, 1.5]
+    // maxWidth = 2600
+
+  //}
+
+  // width === the original image width (no resizing takes place.)
+  // so if "width" <= 1000 we know its Red Carpet or another really small image.
+
+
+
+
+  if (options.maxWidth === 2600) {
+    sizes.push(1000)
+    //sizes.push(options.maxWidth / 2.6) // 1000
+    // sizes.push(options.maxWidth / 1.6) // 1625
+    // sizes.push(options.maxWidth) // 2600
+    // we don't need this because the original is close to this size.
+  } else {
+    if (width >= 1600 || height >= 1600) {
+      sizes.push(width / 2)
+    }
+    //sizes.push(options.maxWidth / 2) // 800
+    //sizes.push(options.maxWidth) // 1600
+    // ~2600 from original size
+  }
+
+  // this should be 2 sizes maxium
+  // can I avoid resizing the original image?
+  // I think I may need to ask about that. Looks like they all get processed.
+
+  //sizes.push(options.maxWidth * 2)
+  //sizes.push(options.maxWidth * 3)
   const filteredSizes = sizes.filter(size => size < width)
 
   // Add the original image to ensure the largest image possible
@@ -497,11 +541,13 @@ async function responsiveSizes({ file, args = {}, reporter }) {
   const sortedSizes = _.sortBy(filteredSizes)
 
   // Queue sizes for processing.
-  const images = sortedSizes.map(size => {
+  const images = sortedSizes.map((size, index) => {
     const arrrgs = {
       ...options,
       width: Math.round(size),
+      passThrough: index === sortedSizes.length - 1
     }
+    // console.log('file, arrgs: ', file, arrrgs)
     // Queue sizes for processing.
     if (options.maxHeight) {
       arrrgs.height = Math.round(size * (options.maxHeight / options.maxWidth))
@@ -536,6 +582,11 @@ async function responsiveSizes({ file, args = {}, reporter }) {
     .map(image => `${image.src} ${Math.round(image.width)}w`)
     .join(`,\n`)
   const originalName = file.base
+
+  //console.log(`custom srcSet: `, srcSet)
+
+  //console.log("originalImg: ", originalImg)
+  //console.log("images: ", images)
 
   return {
     base64: base64Image.src,
